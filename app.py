@@ -577,4 +577,4 @@ elif selected == "Données complémentaires":
 
 # ----- FOOTER OU INFO -----
 st.markdown("---")
-st.markdown("Application City Fighting - Données publiques ©")
+st.markdown("Application City Fighting - par Merial Boumediene et Precy Gassai Lepoma")
