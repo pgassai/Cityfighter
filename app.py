@@ -207,12 +207,9 @@ def display_general_data(city1, city2):
         col1, col2 = st.columns(2)
         with col1:
             st.subheader(city1)
-            if coords1 is None or any(pd.isna(coords1)):
-                st.error("Coordonnées invalides pour la ville 1.")
-            else:
-                m = folium.Map(location = coords1, zoom_start = 11)
-                folium.Marker(location=coords1, tooltip=city1).add_to(m)
-                st_folium(m, width='100%', height=500)
+            m = folium.Map(location = coords1, zoom_start = 11)
+            folium.Marker(location=coords1, tooltip=city1).add_to(m)
+            st_folium(m, width='100%', height=500)
 
         with col2:
             st.subheader(city2)
