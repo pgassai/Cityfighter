@@ -35,7 +35,7 @@ liste_villes = sorted(liste_villes)
 
 # ----- SIDEBAR -----
 st.sidebar.title("Comparateur de villes")
-city1 = st.sidebar.selectbox("Ville 1", liste_villes, index=liste_villes.index("Lyon") if "Lyon" in liste_villes else 0)
+city1 = st.sidebar.selectbox("Ville 1", liste_villes, index=liste_villes.index("Aix-en-Provence") if "Aix-en-Provence" in liste_villes else 0)
 city2 = st.sidebar.selectbox("Ville 2", liste_villes, index=liste_villes.index("Lille") if "Lille" in liste_villes else 1)
 
 code_insee_city1 = data[data["LIBGEO"] == city1].iloc[0]["CODGEO"]
