@@ -1,0 +1,50 @@
+:root {
+    --kpi-primary: #00c6ff;
+    --kpi-secondary: #0072ff;
+    --kpi-accent: #ff6a00;
+    --kpi-success: #00e676;
+    --kpi-bg: #f4f4f9;
+}
+
+.kpi-box {
+    background: linear-gradient(145deg, #ffffff, #e6e6ec);
+    border-radius: 15px;
+    padding: 15px 18px;
+    margin-bottom: 15px;
+    box-shadow: 4px 4px 12px #d1d1d6, -4px -4px 12px #ffffff;
+    transition: all 0.3s ease-in-out;
+    text-align: center;
+    border-top: 4px solid var(--kpi-secondary);
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.kpi-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 8px 8px 16px #c0c0c5, -8px -8px 16px #ffffff;
+}
+
+.kpi-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.kpi-value {
+    font-size: 26px;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--kpi-primary), var(--kpi-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin: 8px 0;
+}
+
+.kpi-source {
+    font-size: 11px;
+    color: #777;
+    font-style: italic;
+    margin-top: 8px;
+}
