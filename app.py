@@ -11,8 +11,7 @@ import folium
 from streamlit_folium import st_folium
 from folium.plugins import MarkerCluster
 import json
-from bs4 import BeautifulSoup
-from logement import afficher_annonces
+
 
 
 # ----- CONFIGURATION DE LA PAGE -----
@@ -420,9 +419,6 @@ elif selected == "Logement":
         prix_min, prix_max = st.slider("Filtrer par prix (€)", 0, 2000000, (0, 1000000), step=10000)
 
         # ---------------- Affichage ----------------
-        afficher_annonces(tab1, city1, type_bien, prix_min, prix_max, nb_annonces)
-        afficher_annonces(tab2, city2, type_bien, prix_min, prix_max, nb_annonces)
-        
 
 elif selected == "Météo":
     st.title("🌦️ Météo")
