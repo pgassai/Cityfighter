@@ -380,7 +380,7 @@ def render_offre(offre):
 client_id = "PAR_cityfighter_87822568bc2896de7af0df9770a1824feb4f21b9c5a7a8870251a64e88a2db4c"
 client_secret = "820b9f6263d658d14b921e37a5c6a0f0f6e3705e4ade1c02372fd3927ef95625"
 
-st.markdown(f"<h1 style='text-align: center;'>{city1} VS {city2}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center;'>{city1}  🆚  {city2}</h1>", unsafe_allow_html=True)
 
 # ----- AFFICHAGE PAR ONGLET -----
 
