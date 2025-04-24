@@ -13,7 +13,7 @@ import json
 
 
 # ----- CONFIGURATION DE LA PAGE -----
-st.set_page_config(page_title="City Fighting", layout="wide")
+st.set_page_config(page_title="City Fighting", page_icon = ":crossed_swords:", layout="wide")
 
 
 # ----- CHARGER LES DONNÉES -----
