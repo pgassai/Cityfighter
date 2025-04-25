@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import geopandas as gpd
 import requests
 from streamlit_option_menu import option_menu
 import wikipedia
@@ -22,8 +23,19 @@ st.set_page_config(page_title="City Fighting", page_icon = ":crossed_swords:", l
 
 # ----- CHARGER LES DONNÉES -----
 data = pd.read_csv("data/data_commune.csv", delimiter=";")
-donnees_comp = pd.read_csv("data/donnee_comp.csv", delimiter=";")
+donnees_comp = pd.read_csv("data/mairie.csv", delimiter=";")
 univ_data = pd.read_csv("data/univ.csv", delimiter=";", encoding="utf-8")
+gare_data = pd.read_csv("data/gares.csv", delimiter=";")
+tourism_data = pd.read_csv("data/tourisme.csv", delimiter=";")
+hospitals_data = pd.read_csv("data/hospitals.csv", delimiter=";")
+
+# Extraire les coordonnées (géopoint : "POINT (longitude latitude)")
+hospitals_data['coordinates'] = hospitals_data['the_geom'].apply(lambda x: x.replace('POINT (', '').replace(')', '').split(' '))
+
+# Convertir les coordonnées en latitude et longitude
+hospitals_data['longitude'] = hospitals_data['coordinates'].apply(lambda x: float(x[0]))
+hospitals_data['latitude'] = hospitals_data['coordinates'].apply(lambda x: float(x[1]))
+
 
 #liste_villes = [str(ville) for ville in data["LIBGEO"] if isinstance(ville, str) and ville.strip()]
 liste_villes = [
@@ -47,7 +59,7 @@ code_insee_city2 = data[data["LIBGEO"] == city2].iloc[0]["CODGEO"]
 with st.sidebar:
     selected = option_menu(
         menu_title="Choisissez une catégorie",
-        options=["Accueil","Données générales", "Emploi", "Logement", "Météo", "Données complémentaires"],
+        options=["Accueil","Informations générales", "Emploi", "Logement", "Météo", "Informations complémentaires"],
         icons=["house","bar-chart", "briefcase", "house", "cloud-sun", "map"],
         menu_icon="cast",
         default_index=0,
@@ -394,11 +406,11 @@ if selected == "Accueil":
 
         ###  Indicateurs disponibles dans l’application :
 
-        - **Données générales** : population, superficie, densité...
+        - **Informations générales** : population, superficie, densité...
         - **Emploi** : taux de chômage, taux d’emploi, offres d’emploi en temps réel
         - **Logement** : nombre de logements, résidences principales...
         - **Météo** : prévisions météo comparées pour aujourd’hui et demain
-        - **Données complémentaires** : mairies, universités, points d’intérêt géolocalisés
+        - **Informations complémentaires** : mairies, universités, points d’intérêt géolocalisés
                 
        ###  Technologies utilisées
         Ce projet est développé en **Python** avec le framework **Streamlit**, et s’appuie sur des **bases de données et API publiques** comme :
@@ -433,8 +445,8 @@ if selected == "Accueil":
         """, unsafe_allow_html=True)
 
 
-elif selected == "Données générales":
-    st.title("📊 Données générales")
+elif selected == "Informations générales":
+    st.title("📊 Informations générales")
     display_general_data(city1, city2)
     #display_accueil(city1, city2)
 
@@ -611,64 +623,143 @@ elif selected == "Météo":
             st.html(f'<a href="https://www.prevision-meteo.ch/meteo/localite/{city2_lower}"><img src="https://www.prevision-meteo.ch/uploads/widget/{city2_lower}_1.png" width="650" height="250" /></a>')
         display_weather_comparison_forecast(city1, city2, weather_api_key)
 
-elif selected == "Données complémentaires":
-    st.title("📍 Données complémentaires")
+elif selected == "Informations complémentaires":
+    st.title("📍 Informations complémentaires")
     st.subheader("Choisissez les entités à afficher sur la carte :")
     types_disponibles = donnees_comp["Type d'entité"].dropna().unique().tolist()
-    if "Université" not in types_disponibles:
-        types_disponibles.append("Université")
+    # Ajouter les entités spéciales
+    for ent in ["Université", "Mairie", "Gare", "Hôpital","Activités"]:
+        if ent not in types_disponibles:
+            types_disponibles.append(ent)
 
     types_choisis = st.multiselect("Types d'entités", types_disponibles)
 
+    # Fonctions d'extraction
+    def extract_universities(city):
+        filt = univ_data["localisation"].str.lower().str.contains(city.lower(), na=False)
+        return univ_data[filt][["LAT", "LONG", "uo_lib"]] \
+            .rename(columns={"LAT": "lat", "LONG": "lon", "uo_lib": "name"})
+
+    def extract_mairies(city):
+        filt = (donnees_comp["Type d'entité"] == "Mairie") & \
+               (donnees_comp["Commune"].str.lower().str.contains(city.lower(), na=False))
+        return donnees_comp[filt][["LAT", "LONG", "Nom de l'entité"]] \
+            .rename(columns={"LAT": "lat", "LONG": "lon", "Nom de l'entité": "name"})
+
+    def extract_gares(city):
+        filt = gare_data["COMMUNE"].str.lower().str.contains(city.lower(), na=False)
+        return gare_data[filt][["LAT", "LONG", "LIBELLE"]] \
+            .rename(columns={"LAT": "lat", "LONG": "lon", "LIBELLE": "name"})
+
+    def extract_hospitals(city):
+        # Filtrer les hôpitaux par ville
+        filt = hospitals_data['addr-city'].str.lower().str.contains(city.lower(), na=False)
+        df = hospitals_data[filt].copy()
+        # Extraire coordonnées depuis the_geom (format WKT)
+        coords = df['the_geom'].str.extract(r'POINT \(([0-9\.-]+) ([0-9\.-]+)\)')
+        df['lon'] = coords[0].astype(float)
+        df['lat'] = coords[1].astype(float)
+        # Utiliser le nom officiel ou nom court
+        df['entity_name'] = df['name'].fillna(df.get('official_name', ''))
+        return df[['lat', 'lon', 'entity_name']].rename(columns={'entity_name': 'name'})
+
+    def extract_tourism(city):
+        # Convertir les coordonnées de string (avec virgule) en float
+        df = tourism_data.copy()
+        df['lat'] = df['LAT'].astype(str).str.replace(',', '.').astype(float)
+        df['lon'] = df['LONG'].astype(str).str.replace(',', '.').astype(float)
+        filt = df['Commune'].str.lower().str.contains(city.lower(), na=False)
+        return df[filt][['lat', 'lon', 'Nom_du_POI']].rename(columns={'Nom_du_POI': 'name'})
+
     if types_choisis:
         col1, col2 = st.columns(2)
+        # Carte de la première ville
+        with col1:
+            st.subheader(f"Entités à {city1}")
+            loc1 = data[data["LIBGEO"] == city1].iloc[0]
+            m1 = folium.Map(location=[loc1["LAT"], loc1["LONG"]], zoom_start=12)
+            if "Université" in types_choisis:
+                for _, row in extract_universities(city1).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Université : {row['name']}",
+                        icon=folium.Icon(color="blue", icon="university", prefix="fa")
+                    ).add_to(m1)
+            if "Mairie" in types_choisis:
+                for _, row in extract_mairies(city1).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Mairie : {row['name']}",
+                        icon=folium.Icon(color="green", icon="building", prefix="fa")
+                    ).add_to(m1)
+            if "Gare" in types_choisis:
+                for _, row in extract_gares(city1).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Gare : {row['name']}",
+                        icon=folium.Icon(color="red", icon="train", prefix="fa")
+                    ).add_to(m1)
+            if "Hôpital" in types_choisis:
+                for _, row in extract_hospitals(city1).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Hôpital : {row['name']}",
+                        icon=folium.Icon(color="orange", icon="hospital", prefix="fa")
+                    ).add_to(m1)
+            if "Activités" in types_choisis:
+                for _, row in extract_tourism(city1).iterrows():
+                    folium.Marker(
+                        [row['lat'], row['lon']], tooltip=row['name'], popup=row['name'],
+                        icon=folium.Icon(color='purple', icon='camera', prefix='fa')
+                    ).add_to(m1)
+            st_folium(m1, width=600, height=400)
 
-        if "Université" in types_choisis:
-            def extract_universities(city):
-                return pd.DataFrame([
-                    {"lat": rec["fields"]["coordonnees"][0], "lon": rec["fields"]["coordonnees"][1]}
-                    for rec in univ_data
-                    if "fields" in rec and rec["fields"].get("com_nom", "").lower() == city.lower()
-                    and "coordonnees" in rec["fields"] and len(rec["fields"]["coordonnees"]) == 2
-                ])
+        # Carte de la deuxième ville
+        with col2:
+            st.subheader(f"Entités à {city2}")
+            loc2 = data[data["LIBGEO"] == city2].iloc[0]
+            m2 = folium.Map(location=[loc2["LAT"], loc2["LONG"]], zoom_start=12)
+            if "Université" in types_choisis:
+                for _, row in extract_universities(city2).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Université : {row['name']}",
+                        icon=folium.Icon(color="blue", icon="university", prefix="fa")
+                    ).add_to(m2)
+            if "Mairie" in types_choisis:
+                for _, row in extract_mairies(city2).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Mairie : {row['name']}",
+                        icon=folium.Icon(color="green", icon="building", prefix="fa")
+                    ).add_to(m2)
+            if "Gare" in types_choisis:
+                for _, row in extract_gares(city2).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Gare : {row['name']}",
+                        icon=folium.Icon(color="red", icon="train", prefix="fa")
+                    ).add_to(m2)
+            if "Hôpital" in types_choisis:
+                for _, row in extract_hospitals(city2).iterrows():
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        tooltip=row['name'], popup=f"Hôpital : {row['name']}",
+                        icon=folium.Icon(color="orange", icon="hospital", prefix="fa")
+                    ).add_to(m2)
+            if "Activités" in types_choisis:
+                for _, row in extract_tourism(city2).iterrows():
+                    folium.Marker(
+                        [row['lat'], row['lon']], tooltip=row['name'], popup=row['name'],
+                        icon=folium.Icon(color='purple', icon='camera', prefix='fa')
+                    ).add_to(m2)
+            st_folium(m2, width=600, height=400)
 
-            with col1:
-                st.subheader(f"Universités à {city1}")
-                univ_city1 = extract_universities(city1)
-                if not univ_city1.empty:
-                    st.map(univ_city1)
-                else:
-                    st.info("Aucune université trouvée pour cette ville.")
-
-            with col2:
-                st.subheader(f"Universités à {city2}")
-                univ_city2 = extract_universities(city2)
-                if not univ_city2.empty:
-                    st.map(univ_city2)
-                else:
-                    st.info("Aucune université trouvée pour cette ville.")
-
-        filtered_city1 = donnees_comp[(donnees_comp["Type d'entité"].isin(types_choisis)) & (donnees_comp["Commune"] == city1)]
-        filtered_city2 = donnees_comp[(donnees_comp["Type d'entité"].isin(types_choisis)) & (donnees_comp["Commune"] == city2)]
-
-        if "Université" not in types_choisis:  # afficher les autres cartes uniquement si Université non sélectionnée seule
-            with col1:
-                st.subheader(f"Carte pour {city1}")
-                if not filtered_city1.empty:
-                    map_city1 = filtered_city1.rename(columns={"LAT": "lat", "LONG": "lon"})[["lat", "lon"]]
-                    st.map(map_city1)
-                else:
-                    st.info("Aucune entité trouvée pour cette ville.")
-
-            with col2:
-                st.subheader(f"Carte pour {city2}")
-                if not filtered_city2.empty:
-                    map_city2 = filtered_city2.rename(columns={"LAT": "lat", "LONG": "lon"})[["lat", "lon"]]
-                    st.map(map_city2)
-                else:
-                    st.info("Aucune entité trouvée pour cette ville.")
+        
     else:
         st.info("Veuillez sélectionner au moins un type d'entité à afficher.")
+
+
 
 # ----- FOOTER OU INFO -----
 st.markdown("---")

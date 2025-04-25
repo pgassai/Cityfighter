@@ -5,3 +5,4 @@ streamlit-folium
 streamlit_option_menu
 wikipedia
 plotly.express
+geopandas
